@@ -1,0 +1,8 @@
+Release 1.0 goals:
+
+Get the cost of all Kate series handbags from ysl.com
+- get costs from most western/asian countries
+- get the exchange rate of the above countries found
+- store the data in a local DB for comparing 
+- produce an excel file with cell highlighting to see which countries are most cost effective
+- be able to configure which countries to include in the search, whitelist the product names to search for
