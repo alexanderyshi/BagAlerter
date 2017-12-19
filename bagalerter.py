@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 import urllib2
 import os
+import json
 
 ### CONFIG
 ysl_kate_url_CA = 'https://www.ysl.com/ca/shop-product/women/kate'
@@ -12,6 +13,8 @@ headers = { 'User-Agent' : dummy_user_agent }
 
 PRINT_ENDPOINTS = False
 countries_file_name = 'countries.csv'
+
+whitelist_file_name = 'whitelist.json'
 
 output_encoding = 'utf8'
 output_file_name_base = 'bags_'
@@ -66,6 +69,7 @@ def _parse_by_name(soup):
 	# 		f.write(child.encode('utf16'))
 	# f.close()
 
+# !!AYS missing 
 def _get_selling_countries():
 	req = urllib2.Request(ysl_kate_url_CA, headers=headers)
 	response = urllib2.urlopen(req)
@@ -78,7 +82,8 @@ def _get_selling_countries():
 	regions = soup.find_all('div', class_='nations')
 	for region in regions:
 		for country in region.find_all('span', 'text'):
-			country_string = country.get_text().replace(' ', '_')
+			# country_string = country.get_text().replace(' ', '_')
+			country_string = country.get_text()
 			country_string.encode(output_encoding)
 			countries.append(country_string)
 		for url in region.find_all('a'):
@@ -91,9 +96,16 @@ def _get_selling_countries():
 		output[countries[idx]] = urls[idx]
 	return output
 
+def _get_whitelist():
+	with open(whitelist_file_name) as data_file:
+		whitelist = json.load(data_file)
+	return whitelist
+
 ### OUTPUT
 # Parsing the soup for eligible countries
 countries = _get_selling_countries()
+whitelist = _get_whitelist()
+print(whitelist)
 
 if PRINT_ENDPOINTS:
 	if os.path.isfile(countries_file_name):
@@ -107,7 +119,10 @@ if PRINT_ENDPOINTS:
 
 # Getting the web page
 for country in countries:
-	output_file_name = output_file_name_base + country + '.csv'
+	if whitelist[country] == False:
+		continue
+	print (country)
+	output_file_name = (output_file_name_base + country + '.csv').replace(' ', '_')
 	output_file_path = os.path.join(output_folder_name, output_file_name)
 
 	req = urllib2.Request(countries[country], headers=headers)
