@@ -33,6 +33,9 @@ def _get_rates(currency_base):
 
 
 def convert(value, currency, target):
+    if target == currency:
+        return value
+
     currency_cached = _get_cached(currency)
     target_cached = _get_cached(target)
 
@@ -50,8 +53,6 @@ def convert(value, currency, target):
         rates = _get_rates(currency)
         if target in rates:
             return value * rates[target]
-        elif target == currency:
-            return value
         else:
             raise Exception("Currency not found")
 
