@@ -1,4 +1,5 @@
 from bs4 import BeautifulSoup
+
 import urllib2
 import os
 import json
@@ -102,43 +103,47 @@ def _get_whitelist():
 	return whitelist
 
 ### OUTPUT
-# Parsing the soup for eligible countries
-countries = _get_selling_countries()
-whitelist = _get_whitelist()
-print(whitelist)
+if __name__ == "__main__":
+	# Parsing the soup for eligible countries
+	countries = _get_selling_countries()
+	whitelist = _get_whitelist()
 
-if PRINT_ENDPOINTS:
-	if os.path.isfile(countries_file_name):
-		os.remove(countries_file_name)
-	f = open(countries_file_name, 'a')
+	if PRINT_ENDPOINTS:
+		if os.path.isfile(countries_file_name):
+			os.remove(countries_file_name)
+		f = open(countries_file_name, 'a')
+		for country in countries:
+			display_string = '{}, {}\n'.format(country, countries[country])
+			print(countries[country])
+			f.write(display_string)
+		f.close()
+
+	# Getting the web page
 	for country in countries:
-		display_string = '{}, {}\n'.format(country, countries[country])
-		print(countries[country])
-		f.write(display_string)
-	f.close()
+		if country in whitelist:
+			if whitelist[country] == False:
+				continue
+		else:
+			print country + " does not exist in whitelist, skipping"
+			continue
+		print (country)
+		output_file_name = (output_file_name_base + country + '.csv').replace(' ', '_')
+		output_file_path = os.path.join(output_folder_name, output_file_name)
 
-# Getting the web page
-for country in countries:
-	if whitelist[country] == False:
-		continue
-	print (country)
-	output_file_name = (output_file_name_base + country + '.csv').replace(' ', '_')
-	output_file_path = os.path.join(output_folder_name, output_file_name)
+		req = urllib2.Request(countries[country], headers=headers)
+		response = urllib2.urlopen(req)
+		page = response.read()
 
-	req = urllib2.Request(countries[country], headers=headers)
-	response = urllib2.urlopen(req)
-	page = response.read()
-
-	# Parsing the soup for bags
-	soup = BeautifulSoup(page, 'html.parser')
-	database = _parse_by_name(soup)
-	# Output formatting
-	if not os.path.exists(output_folder_name):
-		os.makedirs(output_folder_name)
-	if os.path.isfile(output_file_path):
-		os.remove(output_file_path)
-	f = open(output_file_path, 'a')
-	for item in database:
-		display_string = item.get_display_string()
-		f.write(display_string)
-	f.close()
+		# Parsing the soup for bags
+		soup = BeautifulSoup(page, 'html.parser')
+		database = _parse_by_name(soup)
+		# Output formatting
+		if not os.path.exists(output_folder_name):
+			os.makedirs(output_folder_name)
+		if os.path.isfile(output_file_path):
+			os.remove(output_file_path)
+		f = open(output_file_path, 'a')
+		for item in database:
+			display_string = item.get_display_string()
+			f.write(display_string)
+		f.close()

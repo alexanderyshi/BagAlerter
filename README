@@ -1,4 +1,12 @@
-Release 1.0 goals:
+*** To use:
+
+From any appropriate shell (i.e. Bash for Windows), run:
+	
+	pip install -r requirements.txt 
+
+Then, run bagalerter.py
+
+*** Release 1.0 goals:
 
 Get the cost of all Kate series handbags from ysl.com
 - get costs from most western/asian countries
