@@ -130,7 +130,7 @@ def _get_whitelist():
 def fetch_std_prices(database):
 	for item in database:
 		std_currency = standardized_currency
-		std_price = CurrencyConverter.convert(item.price, std_currency, item.currency)
+		std_price = CurrencyConverter.convert(item.price, item.currency, std_currency)
 		item.attach_std(std_price, std_currency)
 	return database
 
