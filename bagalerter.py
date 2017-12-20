@@ -8,7 +8,6 @@ import CurrencyConverter
 
 ### CONFIG
 ysl_kate_url_CA = 'https://www.ysl.com/ca/shop-product/women/kate'
-url = ysl_kate_url_CA
 
 # Use a dummy user agent for YSL site
 dummy_user_agent = 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'
@@ -31,10 +30,6 @@ standardized_currency = 'CAD'
 ### HELPERS
 
 class Item:
-	# there are edge cases for handling currency,
-	# i.e. Andorra uses '.' and ',' opposite from the north american way
-	# France uses ',' as '.'
-	# !!AYS take country code for edge cases?
 	def __init__(self, name, price, currency, brand):
 		self.name 	= name.strip().replace(',','').encode(output_encoding)
 		self.price 	= price
@@ -72,15 +67,14 @@ def _sanitize_currency(currency, country):
 
 def fetch_prices(soup, country):
 	### these are of type <class 'bs4.element.ResultSet'>
-	# !!AYS can make soup out of items to help get prices in a more robust way
-	# items = soup.find_all('div', class_='infoMouseOver') 
-	names = soup.find_all('span', class_='inner modelName')
-	prices = soup.find_all('span', class_='value')
-	currencies = soup.find_all('span', class_='currency')
-
-	if prices[0].get_text() == '':
-		prices = prices[1:]
-		print 'culled empty price'
+	items = soup.find_all('div', class_='infoMouseOver') 
+	names = []
+	prices = []
+	currencies = []
+	for item in items:
+		names.append( item.find('span', class_='inner modelName') )
+		prices.append( item.find('span', class_='value') )
+		currencies.append( item.find('span', class_='currency') )
 
 	output = []
 	
@@ -95,7 +89,6 @@ def fetch_prices(soup, country):
 							'YSL'))
 	return output
 
-# !!AYS missing 
 def _get_selling_countries():
 	req = urllib2.Request(ysl_kate_url_CA, headers=headers)
 	response = urllib2.urlopen(req)
@@ -108,7 +101,6 @@ def _get_selling_countries():
 	regions = soup.find_all('div', class_='nations')
 	for region in regions:
 		for country in region.find_all('span', 'text'):
-			# country_string = country.get_text().replace(' ', '_')
 			country_string = country.get_text()
 			country_string.encode(output_encoding)
 			countries.append(country_string)
@@ -169,13 +161,14 @@ if __name__ == '__main__':
 		# Parsing the soup for bags
 		soup = BeautifulSoup(page, 'html.parser')
 		database = fetch_prices(soup, country)
-		database = fetch_std_prices(database)
+		database = fetch_std_prices(database) # !!AYS is pass by ref supported in Python?
 
 		# Output formatting
 		if not os.path.exists(output_folder_name):
 			os.makedirs(output_folder_name)
 		if os.path.isfile(output_file_path):
 			os.remove(output_file_path)
+
 		f = open(output_file_path, 'a')
 		for item in database:
 			display_string = item.get_display_string()
