@@ -3,6 +3,8 @@ from bs4 import BeautifulSoup
 import urllib2
 import os
 import json
+import re
+import CurrencyConverter
 
 ### CONFIG
 ysl_kate_url_CA = 'https://www.ysl.com/ca/shop-product/women/kate'
@@ -21,24 +23,46 @@ output_encoding = 'utf8'
 output_file_name_base = 'bags_'
 output_folder_name = 'output'
 
+sanitized_currencies = {}
+sanitized_currencies_file_name = 'sanitized_currencies.json'
+
 ### HELPERS
 
 class Item:
 	# there are edge cases for handling currency,
-	# i.e. Andorra uses "." and "," opposite from the north american way
-	# France uses "," as "."
+	# i.e. Andorra uses '.' and ',' opposite from the north american way
+	# France uses ',' as '.'
 	# !!AYS take country code for edge cases?
 	def __init__(self, name, price, currency, brand):
-		self.name 	= name.encode(output_encoding)
-		self.price 	= price.replace(',','').encode(output_encoding)
+		self.name 	= name.strip().replace(',','').encode(output_encoding)
+		self.price 	= price.encode(output_encoding)
 		self.currency = currency.encode(output_encoding)
 		self.brand 	= brand.encode(output_encoding)
 
 	def get_display_string(self):
 		return '{},{},{},{}\n'.format(self.name, self.price, self.currency, self.brand)
 
-def _parse_by_name(soup):
+def _read_sanitized_currencies():
+	currency_list = {}
+	with open(sanitized_currencies_file_name) as data_file:
+		currency_list = json.load(data_file)
+	return currency_list
+
+def _sanitize_currency(currency, country):
+	global sanitized_currencies
+	if sanitized_currencies == {}:
+		sanitized_currencies = _read_sanitized_currencies()
+
+	if country in sanitized_currencies:
+		currency = sanitized_currencies[country]
+	else:
+		currency = re.sub(r'[^a-zA-Z]' ,'', currency)
+	return currency
+
+def _parse_by_name(soup, country):
 	### these are of type <class 'bs4.element.ResultSet'>
+	# !!AYS can make soup out of items to help get prices in a more robust way
+	# items = soup.find_all('div', class_='infoMouseOver') 
 	names = soup.find_all('span', class_='inner modelName')
 	prices = soup.find_all('span', class_='value')
 	currencies = soup.find_all('span', class_='currency')
@@ -51,24 +75,13 @@ def _parse_by_name(soup):
 	
 	# !!AYS replace the brand with some sort of site code pulled from the soup?
 	for idx in range (0, len(names)):
-		output.append(Item(names[idx].get_text().strip(), 	\
+		currency = currencies[idx].get_text()
+		currency = _sanitize_currency(currency, country)
+		output.append(Item(names[idx].get_text(), 	\
 							prices[idx].get_text(), 		\
-							currencies[idx].get_text(), 	\
+							currency, 	\
 							'YSL'))
 	return output
-
-# !!AYS not working
-# def _parse_by_relation(soup):
-	## these are of type <class 'bs4.element.ResultSet'>
-	# items = soup.find_all('div', class_='infoMouseOver')
-
-	# os.remove(output_file_name_base)
-	# f = open(output_file_name_base, 'a')
-	# for item in items:
-	# 	for child in item.children:
-	# 		print child
-	# 		f.write(child.encode('utf16'))
-	# f.close()
 
 # !!AYS missing 
 def _get_selling_countries():
@@ -103,7 +116,7 @@ def _get_whitelist():
 	return whitelist
 
 ### OUTPUT
-if __name__ == "__main__":
+if __name__ == '__main__':
 	# Parsing the soup for eligible countries
 	countries = _get_selling_countries()
 	whitelist = _get_whitelist()
@@ -124,7 +137,7 @@ if __name__ == "__main__":
 			if whitelist[country] == False:
 				continue
 		else:
-			print country + " does not exist in whitelist, skipping"
+			print country + ' does not exist in whitelist, skipping'
 			continue
 		print (country)
 		output_file_name = (output_file_name_base + country + '.csv').replace(' ', '_')
@@ -136,7 +149,7 @@ if __name__ == "__main__":
 
 		# Parsing the soup for bags
 		soup = BeautifulSoup(page, 'html.parser')
-		database = _parse_by_name(soup)
+		database = _parse_by_name(soup, country)
 		# Output formatting
 		if not os.path.exists(output_folder_name):
 			os.makedirs(output_folder_name)
