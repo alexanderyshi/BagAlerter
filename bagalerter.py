@@ -26,6 +26,8 @@ output_folder_name = 'output'
 sanitized_currencies = {}
 sanitized_currencies_file_name = 'sanitized_currencies.json'
 
+standardized_currency = 'CAD'
+
 ### HELPERS
 
 class Item:
@@ -35,12 +37,21 @@ class Item:
 	# !!AYS take country code for edge cases?
 	def __init__(self, name, price, currency, brand):
 		self.name 	= name.strip().replace(',','').encode(output_encoding)
-		self.price 	= price.encode(output_encoding)
+		self.price 	= price
 		self.currency = currency.encode(output_encoding)
 		self.brand 	= brand.encode(output_encoding)
 
+	def attach_std(self, std_price, std_currency):
+		self.std_price 	= std_price
+		self.std_currency 	= std_currency.encode(output_encoding)
+
 	def get_display_string(self):
-		return '{},{},{},{}\n'.format(self.name, self.price, self.currency, self.brand)
+		return '{},{},{},{},{},{}\n'.format(self.name, \
+											self.price, \
+											self.currency, \
+											self.std_price, \
+											self.std_currency, \
+											self.brand)
 
 def _read_sanitized_currencies():
 	currency_list = {}
@@ -59,7 +70,7 @@ def _sanitize_currency(currency, country):
 		currency = re.sub(r'[^a-zA-Z]' ,'', currency)
 	return currency
 
-def _parse_by_name(soup, country):
+def fetch_prices(soup, country):
 	### these are of type <class 'bs4.element.ResultSet'>
 	# !!AYS can make soup out of items to help get prices in a more robust way
 	# items = soup.find_all('div', class_='infoMouseOver') 
@@ -77,8 +88,9 @@ def _parse_by_name(soup, country):
 	for idx in range (0, len(names)):
 		currency = currencies[idx].get_text()
 		currency = _sanitize_currency(currency, country)
+		price = (prices[idx])['data-ytos-price']
 		output.append(Item(names[idx].get_text(), 	\
-							prices[idx].get_text(), 		\
+							float(price), 		\
 							currency, 	\
 							'YSL'))
 	return output
@@ -115,6 +127,13 @@ def _get_whitelist():
 		whitelist = json.load(data_file)
 	return whitelist
 
+def fetch_std_prices(database):
+	for item in database:
+		std_currency = standardized_currency
+		std_price = CurrencyConverter.convert(item.price, std_currency, item.currency)
+		item.attach_std(std_price, std_currency)
+	return database
+
 ### OUTPUT
 if __name__ == '__main__':
 	# Parsing the soup for eligible countries
@@ -149,7 +168,9 @@ if __name__ == '__main__':
 
 		# Parsing the soup for bags
 		soup = BeautifulSoup(page, 'html.parser')
-		database = _parse_by_name(soup, country)
+		database = fetch_prices(soup, country)
+		database = fetch_std_prices(database)
+
 		# Output formatting
 		if not os.path.exists(output_folder_name):
 			os.makedirs(output_folder_name)
