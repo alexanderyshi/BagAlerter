@@ -31,7 +31,8 @@ standardized_currency = 'CAD'
 
 class Item:
 	def __init__(self, name, price, currency, brand):
-		self.name 	= name.strip().replace(',','').encode(output_encoding)
+		name = name.strip().replace(',','')
+		self.name 	= name.encode(output_encoding)
 		self.price 	= price
 		self.currency = currency.encode(output_encoding)
 		self.brand 	= brand.encode(output_encoding)
@@ -41,6 +42,10 @@ class Item:
 		self.std_currency 	= std_currency.encode(output_encoding)
 
 	def get_display_string(self):
+		if not hasattr(self, 'std_price'):
+			return 'Item missing standardized price!\n'
+		if not hasattr(self, 'std_currency'):
+			return 'Item missing standardized currency!\n'
 		return '{},{},{},{},{},{}\n'.format(self.name, \
 											self.price, \
 											self.currency, \
@@ -66,19 +71,21 @@ def _sanitize_currency(currency, country):
 	return currency
 
 def fetch_prices(soup, country):
-	### these are of type <class 'bs4.element.ResultSet'>
 	items = soup.find_all('div', class_='infoMouseOver') 
 	names = []
 	prices = []
 	currencies = []
+	item_codes = []
 	for item in items:
 		names.append( item.find('span', class_='inner modelName') )
 		prices.append( item.find('span', class_='value') )
 		currencies.append( item.find('span', class_='currency') )
+		item_code = item.find('div', class_='modelName outer')['data-ytos-opt']
+		item_code = json.loads(item_code)['options']['itemSiteCode']
+		item_codes.append( item_code )
 
 	output = []
 	
-	# !!AYS replace the brand with some sort of site code pulled from the soup?
 	for idx in range (0, len(names)):
 		currency = currencies[idx].get_text()
 		currency = _sanitize_currency(currency, country)
@@ -86,7 +93,7 @@ def fetch_prices(soup, country):
 		output.append(Item(names[idx].get_text(), 	\
 							float(price), 		\
 							currency, 	\
-							'YSL'))
+							item_codes[idx]))
 	return output
 
 def _get_selling_countries():
